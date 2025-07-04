@@ -287,6 +287,41 @@ func TestAccResourceRuleGroupAlerting_PromQLValidation_HistogramAvg(t *testing.T
 	})
 }
 
+func TestAccResourceRuleGroupAlerting_PromQLValidation_DoubleExponentialSmoothing(t *testing.T) {
+	/* Test for double_exponential_smoothing function introduced in newer Prometheus versions */
+	currentVersion, _ := version.NewVersion(os.Getenv("MIMIR_VERSION"))
+	minVersion, _ := version.NewVersion("2.21.0")
+
+	if currentVersion.LessThan(minVersion) {
+		fmt.Printf("Skipping PromQL DoubleExponentialSmoothing tests (current version '%s' is less than '%s')\n", currentVersion, minVersion)
+		return
+	}
+
+	// Init client
+	client, err := NewAPIClient(setupClient())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccCheckMimirRuleGroupDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccResourceRuleGroupAlerting_promql_validation_double_exponential_smoothing,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMimirRuleGroupExists("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "alert_1_double_exponential_smoothing_rule_group", client),
+					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "name", "alert_1_double_exponential_smoothing_rule_group"),
+					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "namespace", "namespace_1"),
+					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "rule.0.alert", "test_double_exponential_smoothing"),
+					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "rule.0.expr", "double_exponential_smoothing(rate(test_metric[5m]), 0.9, 0.1) > 1"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccResourceRuleGroupAlerting_FormatPromQLExpr(t *testing.T) {
 	// Init client
 	client, err := NewAPIClient(setupClient())
@@ -457,6 +492,17 @@ const testAccResourceRuleGroupAlerting_promql_validation_histogram_avg = `
         rule {
             alert = "test_histogram_avg"
             expr  = "histogram_avg(rate(test_metric[5m])) > 1"
+        }
+    }
+`
+
+const testAccResourceRuleGroupAlerting_promql_validation_double_exponential_smoothing = `
+    resource "mimir_rule_group_alerting" "alert_1_double_exponential_smoothing_rule_group" {
+        name = "alert_1_double_exponential_smoothing_rule_group"
+        namespace = "namespace_1"
+        rule {
+            alert = "test_double_exponential_smoothing"
+            expr  = "double_exponential_smoothing(rate(test_metric[5m]), 0.9, 0.1) > 1"
         }
     }
 `

@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccResourceRuleGroupRecording_expectValidationError(t *testing.T) {
@@ -31,6 +32,44 @@ func TestAccResourceRuleGroupRecording_expectValidationError(t *testing.T) {
 				Config:      testAccResourceRuleGroupRecording_expectLabelNameValidationError,
 				ExpectError: regexp.MustCompile("Invalid Label Name"),
 			},
+		},
+	})
+}
+
+func TestAccResourceRuleGroupRecording_ExperimentalPromQLFunctions(t *testing.T) {
+	// Save original environment variable value
+	originalValue := os.Getenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccResourceRuleGroupRecording_experimentalFunctionWithoutFlag,
+				ExpectError: regexp.MustCompile("is not enabled"),
+			},
+			{
+				PreConfig: func() {
+					// Set environment variable to enable experimental functions
+					os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", "true")
+				},
+				Config: testAccResourceRuleGroupRecording_experimentalFunctionWithFlag,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "name", "experimental_test"),
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "namespace", "namespace_1"),
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "rule.0.record", "smoothed_metric"),
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "rule.0.expr", "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)"),
+				),
+			},
+		},
+		CheckDestroy: func(s *terraform.State) error {
+			// Restore original environment variable value
+			if originalValue == "" {
+				os.Unsetenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+			} else {
+				os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", originalValue)
+			}
+			return nil
 		},
 	})
 }
@@ -458,4 +497,26 @@ const testAccResourceRuleGroupRecording_withOrgID = `
                 expr  = "test1_metric"
             }
     }
+`
+
+const testAccResourceRuleGroupRecording_experimentalFunctionWithoutFlag = `
+	resource "mimir_rule_group_recording" "experimental_test" {
+		name = "experimental_test"
+		namespace = "namespace_1"
+		rule {
+			record = "smoothed_metric"
+			expr   = "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)"
+		}
+	}
+`
+
+const testAccResourceRuleGroupRecording_experimentalFunctionWithFlag = `
+	resource "mimir_rule_group_recording" "experimental_test" {
+		name = "experimental_test"
+		namespace = "namespace_1"
+		rule {
+			record = "smoothed_metric"
+			expr   = "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)"
+		}
+	}
 `
