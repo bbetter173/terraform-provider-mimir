@@ -325,7 +325,7 @@ func TestAccResourceRuleGroupAlerting_PromQLValidation_DoubleExponentialSmoothin
 					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "name", "alert_1_double_exponential_smoothing_rule_group"),
 					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "namespace", "namespace_1"),
 					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "rule.0.alert", "test_double_exponential_smoothing"),
-					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "rule.0.expr", "double_exponential_smoothing(rate(test_metric[5m]), 0.9, 0.1) > 1"),
+					resource.TestCheckResourceAttr("mimir_rule_group_alerting.alert_1_double_exponential_smoothing_rule_group", "rule.0.expr", "double_exponential_smoothing(test_metric[5m], 0.9, 0.1) > 1"),
 				),
 			},
 		},
@@ -512,7 +512,7 @@ const testAccResourceRuleGroupAlerting_promql_validation_double_exponential_smoo
         namespace = "namespace_1"
         rule {
             alert = "test_double_exponential_smoothing"
-            expr  = "double_exponential_smoothing(rate(test_metric[5m]), 0.9, 0.1) > 1"
+            expr  = "double_exponential_smoothing(test_metric[5m], 0.9, 0.1) > 1"
         }
     }
 `
