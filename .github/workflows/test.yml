@@ -63,6 +63,10 @@ jobs:
           - '2.13.0'
           - '2.14.0'
           - '2.15.0'
+        include:
+          - mimir-version: '2.15.0'
+            use-experimental: 'true'
+
     steps:
 
     - name: Setup Go
@@ -84,32 +88,22 @@ jobs:
       run: |
         docker pull grafana/mimir:${{ matrix.mimir-version }}
         
-        # Conditional flags based on version
-        if [[ "${{ matrix.mimir-version }}" > "2.15.0" ]]; then
-          # For versions > 2.15.0, include experimental functions flag
-          docker run \
-            -d \
-            -p 8080:8080 \
-            --name mimir \
-            grafana/mimir:${{ matrix.mimir-version }} \
-            -target=alertmanager,ruler \
-            -tenant-federation.enabled=true \
-            -query-frontend.enabled-promql-experimental-functions=double_exponential_smoothing \
-            -ruler.tenant-federation.enabled=true
-        else
-          # For versions <= 2.15.0, omit experimental functions flag
-          docker run \
-            -d \
-            -p 8080:8080 \
-            --name mimir \
-            grafana/mimir:${{ matrix.mimir-version }} \
-            -target=alertmanager,ruler \
-            -tenant-federation.enabled=true \
-            -ruler.tenant-federation.enabled=true
-        fi
+        # Base docker command
+        DOCKER_CMD="docker run -d -p 8080:8080 --name mimir grafana/mimir:${{ matrix.mimir-version }} -target=alertmanager,ruler -tenant-federation.enabled=true"
         
+        # Add experimental functions flag if specified in matrix
+        if [ "${{ matrix.use-experimental }}" = "true" ]; then
+          DOCKER_CMD="$DOCKER_CMD -query-frontend.enabled-promql-experimental-functions=double_exponential_smoothing"
+        fi
+
+        # Add final flag and execute
+        DOCKER_CMD="$DOCKER_CMD -ruler.tenant-federation.enabled=true"
+        eval $DOCKER_CMD
+
         sleep 10
         docker logs mimir
 
     - name: Run acceptance test
-      run: MIMIR_VERSION=${{ matrix.mimir-version }} make testacc
+      run: |
+        MIMIR_VERSION=${{ matrix.mimir-version }} make testacc
+        docker logs mimir
