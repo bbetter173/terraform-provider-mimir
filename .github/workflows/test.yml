@@ -83,15 +83,31 @@ jobs:
     - name: Setup Grafana Mimir from ${{ matrix.mimir-version }}
       run: |
         docker pull grafana/mimir:${{ matrix.mimir-version }}
-        docker run \
-          -d \
-          -p 8080:8080 \
-          --name mimir \
-          grafana/mimir:${{ matrix.mimir-version }} \
-          -target=alertmanager,ruler \
-          -tenant-federation.enabled=true \
-          -query-frontend.enabled-promql-experimental-functions=double_exponential_smoothing \
-          -ruler.tenant-federation.enabled=true
+        
+        # Conditional flags based on version
+        if [[ "${{ matrix.mimir-version }}" > "2.15.0" ]]; then
+          # For versions > 2.15.0, include experimental functions flag
+          docker run \
+            -d \
+            -p 8080:8080 \
+            --name mimir \
+            grafana/mimir:${{ matrix.mimir-version }} \
+            -target=alertmanager,ruler \
+            -tenant-federation.enabled=true \
+            -query-frontend.enabled-promql-experimental-functions=double_exponential_smoothing \
+            -ruler.tenant-federation.enabled=true
+        else
+          # For versions <= 2.15.0, omit experimental functions flag
+          docker run \
+            -d \
+            -p 8080:8080 \
+            --name mimir \
+            grafana/mimir:${{ matrix.mimir-version }} \
+            -target=alertmanager,ruler \
+            -tenant-federation.enabled=true \
+            -ruler.tenant-federation.enabled=true
+        fi
+        
         sleep 10
         docker logs mimir
 
