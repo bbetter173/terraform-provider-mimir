@@ -290,7 +290,7 @@ func TestAccResourceRuleGroupAlerting_PromQLValidation_HistogramAvg(t *testing.T
 func TestAccResourceRuleGroupAlerting_PromQLValidation_DoubleExponentialSmoothing(t *testing.T) {
 	/* Test for double_exponential_smoothing function introduced in newer Prometheus versions */
 	currentVersion, _ := version.NewVersion(os.Getenv("MIMIR_VERSION"))
-	minVersion, _ := version.NewVersion("2.21.0")
+	minVersion, _ := version.NewVersion("2.15.0")
 
 	if currentVersion.LessThan(minVersion) {
 		fmt.Printf("Skipping PromQL DoubleExponentialSmoothing tests (current version '%s' is less than '%s')\n", currentVersion, minVersion)
