@@ -297,6 +297,16 @@ func TestAccResourceRuleGroupAlerting_PromQLValidation_DoubleExponentialSmoothin
 		return
 	}
 
+	originalValue := os.Getenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+	os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", "true")
+	defer func() {
+		if originalValue == "" {
+			os.Unsetenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+		} else {
+			os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", originalValue)
+		}
+	}()
+
 	// Init client
 	client, err := NewAPIClient(setupClient())
 	if err != nil {
