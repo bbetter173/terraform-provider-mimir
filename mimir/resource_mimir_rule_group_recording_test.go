@@ -36,6 +36,14 @@ func TestAccResourceRuleGroupRecording_expectValidationError(t *testing.T) {
 }
 
 func TestAccResourceRuleGroupRecording_ExperimentalPromQLFunctions(t *testing.T) {
+	currentVersion, _ := version.NewVersion(os.Getenv("MIMIR_VERSION"))
+	validVersion, _ := version.NewVersion("2.12.0")
+
+	if !currentVersion.Equal(validVersion) {
+		fmt.Printf("Skipping experimental feature tests (current version '%s' is not '%s')\n", currentVersion, validVersion)
+		return
+	}
+
 	originalValue := os.Getenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
 	os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", "true")
 	defer func() {

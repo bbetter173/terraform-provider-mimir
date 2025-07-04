@@ -98,6 +98,7 @@ jobs:
 
         # Add final flag and execute
         DOCKER_CMD="$DOCKER_CMD -ruler.tenant-federation.enabled=true"
+        echo $DOCKER_CMD
         eval $DOCKER_CMD
 
         sleep 10
