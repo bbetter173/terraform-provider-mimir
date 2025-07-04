@@ -61,6 +61,17 @@ func validateGroupRuleName(v interface{}, k string) (ws []string, errors []error
 func validatePromQLExpr(v interface{}, k string) (ws []string, errors []error) {
 	value := v.(string)
 
+	// Save the original value and restore it at the end of the function
+	originalValue := parser.EnableExperimentalFunctions
+	defer func() {
+		parser.EnableExperimentalFunctions = originalValue
+	}()
+
+	// Enable experimental functions if the provider flag is set
+	if enableExperimentalPromQLFunctions {
+		parser.EnableExperimentalFunctions = true
+	}
+
 	if _, err := parser.ParseExpr(value); err != nil {
 		errors = append(errors, fmt.Errorf(
 			"\"%s\": Invalid PromQL expression %q: %v", k, value, err))
@@ -121,6 +132,17 @@ func formatDuration(v interface{}) string {
 
 func formatPromQLExpr(v interface{}) string {
 	if enablePromQLExprFormat {
+		// Save the original value and restore it at the end of the function
+		originalValue := parser.EnableExperimentalFunctions
+		defer func() {
+			parser.EnableExperimentalFunctions = originalValue
+		}()
+
+		// Enable experimental functions if the provider flag is set
+		if enableExperimentalPromQLFunctions {
+			parser.EnableExperimentalFunctions = true
+		}
+
 		value, _ := parser.ParseExpr(v.(string))
 		// remove spaces causing decoding issues with multiline yaml marshal/unmarshall
 		return strings.TrimLeft(parser.Prettify(value), " ")

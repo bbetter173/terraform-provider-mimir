@@ -11,6 +11,7 @@ import (
 var (
 	apiAlertsPath                            = "/api/v1/alerts"
 	enablePromQLExprFormat                   bool
+	enableExperimentalPromQLFunctions        bool
 	overwriteAlertmanagerConfig              bool
 	overwriteRuleGroupConfig                 bool
 	ruleGroupReadDelayAfterChange            string
@@ -165,6 +166,12 @@ func Provider(version string) func() *schema.Provider {
 					DefaultFunc: schema.EnvDefaultFunc("MIMIR_ALERTMANAGER_READ_RETRY_AFTER_CHANGE", 3),
 					Description: "Max retries to read the alertmanager config after a change.",
 				},
+				"enable_experimental_promql_functions": {
+					Type:        schema.TypeBool,
+					Optional:    true,
+					DefaultFunc: schema.EnvDefaultFunc("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", false),
+					Description: "Enable experimental PromQL functions like double_exponential_smoothing.",
+				},
 			},
 			DataSourcesMap: map[string]*schema.Resource{
 				"mimir_alertmanager_config":      dataSourcemimirAlertmanagerConfig(),
@@ -218,6 +225,7 @@ func providerConfigure(version string, p *schema.Provider, d *schema.ResourceDat
 	}
 
 	enablePromQLExprFormat = d.Get("format_promql_expr").(bool)
+	enableExperimentalPromQLFunctions = d.Get("enable_experimental_promql_functions").(bool)
 	overwriteAlertmanagerConfig = d.Get("overwrite_alertmanager_config").(bool)
 	overwriteRuleGroupConfig = d.Get("overwrite_rule_group_config").(bool)
 	ruleGroupReadDelayAfterChange = d.Get("rule_group_read_delay_after_change").(string)

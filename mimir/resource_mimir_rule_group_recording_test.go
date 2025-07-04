@@ -35,6 +35,43 @@ func TestAccResourceRuleGroupRecording_expectValidationError(t *testing.T) {
 	})
 }
 
+func TestAccResourceRuleGroupRecording_ExperimentalPromQLFunctions(t *testing.T) {
+	currentVersion, _ := version.NewVersion(os.Getenv("MIMIR_VERSION"))
+	validVersion, _ := version.NewVersion("2.12.0")
+
+	if !currentVersion.Equal(validVersion) {
+		fmt.Printf("Skipping experimental feature tests (current version '%s' is not '%s')\n", currentVersion, validVersion)
+		return
+	}
+
+	originalValue := os.Getenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+	os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", "true")
+	defer func() {
+		if originalValue == "" {
+			os.Unsetenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+		} else {
+			os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", originalValue)
+		}
+	}()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccCheckMimirRuleGroupDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccResourceRuleGroupRecording_experimentalFunctionWithFlag,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "name", "experimental_test"),
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "namespace", "namespace_1"),
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "rule.0.record", "smoothed_metric"),
+					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "rule.0.expr", "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)"),
+				),
+			},
+		},
+	})
+}
+
 const testAccResourceRuleGroupRecording_expectNameValidationError = `
 	resource "mimir_rule_group_recording" "record_1" {
 		name = "record_1-@error"
@@ -458,4 +495,15 @@ const testAccResourceRuleGroupRecording_withOrgID = `
                 expr  = "test1_metric"
             }
     }
+`
+
+const testAccResourceRuleGroupRecording_experimentalFunctionWithFlag = `
+	resource "mimir_rule_group_recording" "experimental_test" {
+		name = "experimental_test"
+		namespace = "namespace_1"
+		rule {
+			record = "smoothed_metric"
+			expr   = "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)"
+		}
+	}
 `

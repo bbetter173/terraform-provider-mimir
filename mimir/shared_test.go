@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -105,4 +106,165 @@ func setupClient() *apiClientOpt {
 		debug:           true,
 	}
 	return opt
+}
+
+// TestValidatePromQLExpr_ExperimentalFunctions tests the validatePromQLExpr function
+// with experimental PromQL functions enabled and disabled
+func TestValidatePromQLExpr_ExperimentalFunctions(t *testing.T) {
+	tests := []struct {
+		name                              string
+		expr                              string
+		enableExperimentalPromQLFunctions bool
+		expectError                       bool
+		errorContains                     string
+	}{
+		{
+			name:                              "standard function without experimental flag",
+			expr:                              "rate(http_requests_total[5m])",
+			enableExperimentalPromQLFunctions: false,
+			expectError:                       false,
+		},
+		{
+			name:                              "standard function with experimental flag",
+			expr:                              "rate(http_requests_total[5m])",
+			enableExperimentalPromQLFunctions: true,
+			expectError:                       false,
+		},
+		{
+			name:                              "experimental function without experimental flag",
+			expr:                              "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)",
+			enableExperimentalPromQLFunctions: false,
+			expectError:                       true,
+			errorContains:                     "is not enabled",
+		},
+		{
+			name:                              "experimental function with experimental flag",
+			expr:                              "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)",
+			enableExperimentalPromQLFunctions: true,
+			expectError:                       false,
+		},
+		{
+			name:                              "invalid PromQL expression without experimental flag",
+			expr:                              "rate(invalid_syntax",
+			enableExperimentalPromQLFunctions: false,
+			expectError:                       true,
+			errorContains:                     "Invalid PromQL expression",
+		},
+		{
+			name:                              "invalid PromQL expression with experimental flag",
+			expr:                              "rate(invalid_syntax",
+			enableExperimentalPromQLFunctions: true,
+			expectError:                       true,
+			errorContains:                     "Invalid PromQL expression",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save the original value and restore it at the end of the test
+			originalValue := enableExperimentalPromQLFunctions
+			defer func() {
+				enableExperimentalPromQLFunctions = originalValue
+			}()
+
+			// Set the experimental functions flag for this test
+			enableExperimentalPromQLFunctions = tt.enableExperimentalPromQLFunctions
+
+			// Call the validation function
+			_, errors := validatePromQLExpr(tt.expr, "test_field")
+
+			// Check if we got the expected result
+			if tt.expectError {
+				if len(errors) == 0 {
+					t.Errorf("Expected validation error for expression %q with experimental functions %v, but got none",
+						tt.expr, tt.enableExperimentalPromQLFunctions)
+				} else if tt.errorContains != "" {
+					found := false
+					for _, err := range errors {
+						if strings.Contains(err.Error(), tt.errorContains) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("Expected error containing %q, but got errors: %v", tt.errorContains, errors)
+					}
+				}
+			} else {
+				if len(errors) > 0 {
+					t.Errorf("Expected no validation error for expression %q with experimental functions %v, but got: %v",
+						tt.expr, tt.enableExperimentalPromQLFunctions, errors)
+				}
+			}
+		})
+	}
+}
+
+// TestFormatPromQLExpr_ExperimentalFunctions tests the formatPromQLExpr function
+// with experimental PromQL functions enabled and disabled
+func TestFormatPromQLExpr_ExperimentalFunctions(t *testing.T) {
+	tests := []struct {
+		name                              string
+		expr                              string
+		enablePromQLExprFormat            bool
+		enableExperimentalPromQLFunctions bool
+		expectedFormatted                 bool
+	}{
+		{
+			name:                              "standard function with formatting disabled",
+			expr:                              "rate(http_requests_total[5m])",
+			enablePromQLExprFormat:            false,
+			enableExperimentalPromQLFunctions: false,
+			expectedFormatted:                 false,
+		},
+		{
+			name:                              "standard function with formatting enabled, experimental disabled",
+			expr:                              "rate(http_requests_total[5m])",
+			enablePromQLExprFormat:            true,
+			enableExperimentalPromQLFunctions: false,
+			expectedFormatted:                 true,
+		},
+		{
+			name:                              "experimental function with formatting enabled, experimental enabled",
+			expr:                              "double_exponential_smoothing(http_requests_total, 0.1, 0.1)",
+			enablePromQLExprFormat:            true,
+			enableExperimentalPromQLFunctions: true,
+			expectedFormatted:                 true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save the original values and restore them at the end of the test
+			originalFormatValue := enablePromQLExprFormat
+			originalExperimentalValue := enableExperimentalPromQLFunctions
+			defer func() {
+				enablePromQLExprFormat = originalFormatValue
+				enableExperimentalPromQLFunctions = originalExperimentalValue
+			}()
+
+			// Set the flags for this test
+			enablePromQLExprFormat = tt.enablePromQLExprFormat
+			enableExperimentalPromQLFunctions = tt.enableExperimentalPromQLFunctions
+
+			// Call the formatting function
+			result := formatPromQLExpr(tt.expr)
+
+			// Check if formatting was applied
+			if tt.expectedFormatted {
+				// If formatting is enabled, the result should be different from the input
+				// (unless the input was already perfectly formatted)
+				if !tt.enablePromQLExprFormat {
+					t.Errorf("Expected formatting to be disabled, but enablePromQLExprFormat is %v", tt.enablePromQLExprFormat)
+				}
+				// The result should be a valid string (not empty)
+				if result == "" {
+					t.Errorf("Expected formatted result, but got empty string")
+				}
+			} else if result != tt.expr {
+				// If formatting is disabled, the result should be the same as the input
+				t.Errorf("Expected unformatted result %q, but got %q", tt.expr, result)
+			}
+		})
+	}
 }
