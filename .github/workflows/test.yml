@@ -93,7 +93,7 @@ jobs:
         
         # Add experimental functions flag if specified in matrix
         if [ "${{ matrix.use-experimental }}" = "true" ]; then
-          DOCKER_CMD="$DOCKER_CMD -query-frontend.enabled-promql-experimental-functions=double_exponential_smoothing"
+          DOCKER_CMD="$DOCKER_CMD -query-frontend.enabled-promql-experimental-functions=all"
         fi
 
         # Add final flag and execute
