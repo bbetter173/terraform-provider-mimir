@@ -36,12 +36,8 @@ func TestAccResourceRuleGroupRecording_expectValidationError(t *testing.T) {
 }
 
 func TestAccResourceRuleGroupRecording_ExperimentalPromQLFunctions(t *testing.T) {
-	// Save original environment variable value
 	originalValue := os.Getenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
-	// Set environment variable before test starts
 	os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", "true")
-
-	// Make sure to restore the original value when test finishes
 	defer func() {
 		if originalValue == "" {
 			os.Unsetenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
