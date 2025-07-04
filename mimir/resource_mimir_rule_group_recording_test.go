@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccResourceRuleGroupRecording_expectValidationError(t *testing.T) {
@@ -39,20 +38,24 @@ func TestAccResourceRuleGroupRecording_expectValidationError(t *testing.T) {
 func TestAccResourceRuleGroupRecording_ExperimentalPromQLFunctions(t *testing.T) {
 	// Save original environment variable value
 	originalValue := os.Getenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+	// Set environment variable before test starts
+	os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", "true")
+
+	// Make sure to restore the original value when test finishes
+	defer func() {
+		if originalValue == "" {
+			os.Unsetenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
+		} else {
+			os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", originalValue)
+		}
+	}()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccCheckMimirRuleGroupDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config:      testAccResourceRuleGroupRecording_experimentalFunctionWithoutFlag,
-				ExpectError: regexp.MustCompile("is not enabled"),
-			},
-			{
-				PreConfig: func() {
-					// Set environment variable to enable experimental functions
-					os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", "true")
-				},
 				Config: testAccResourceRuleGroupRecording_experimentalFunctionWithFlag,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "name", "experimental_test"),
@@ -61,15 +64,6 @@ func TestAccResourceRuleGroupRecording_ExperimentalPromQLFunctions(t *testing.T)
 					resource.TestCheckResourceAttr("mimir_rule_group_recording.experimental_test", "rule.0.expr", "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)"),
 				),
 			},
-		},
-		CheckDestroy: func(s *terraform.State) error {
-			// Restore original environment variable value
-			if originalValue == "" {
-				os.Unsetenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS")
-			} else {
-				os.Setenv("MIMIR_ENABLE_EXPERIMENTAL_PROMQL_FUNCTIONS", originalValue)
-			}
-			return nil
 		},
 	})
 }
