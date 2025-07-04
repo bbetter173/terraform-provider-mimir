@@ -90,8 +90,7 @@ jobs:
           grafana/mimir:${{ matrix.mimir-version }} \
           -target=alertmanager,ruler \
           -tenant-federation.enabled=true \
-          -ruler.tenant-federation.enabled=true \
-          -query-frontend.enabled-promql-experimental-functions=all
+          -ruler.tenant-federation.enabled=true
 
     - name: Run acceptance test
       run: MIMIR_VERSION=${{ matrix.mimir-version }} make testacc
