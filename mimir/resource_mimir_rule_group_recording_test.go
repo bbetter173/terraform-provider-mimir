@@ -489,17 +489,6 @@ const testAccResourceRuleGroupRecording_withOrgID = `
     }
 `
 
-const testAccResourceRuleGroupRecording_experimentalFunctionWithoutFlag = `
-	resource "mimir_rule_group_recording" "experimental_test" {
-		name = "experimental_test"
-		namespace = "namespace_1"
-		rule {
-			record = "smoothed_metric"
-			expr   = "double_exponential_smoothing(http_requests_total[5m], 0.1, 0.1)"
-		}
-	}
-`
-
 const testAccResourceRuleGroupRecording_experimentalFunctionWithFlag = `
 	resource "mimir_rule_group_recording" "experimental_test" {
 		name = "experimental_test"
